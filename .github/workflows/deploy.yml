@@ -27,7 +27,9 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - run: npm ci
+      # Dùng `npm install` thay vì `npm ci`: lockfile tạo bằng npm cũ trên Windows hay thiếu
+      # vài gói phụ (@emnapi/*), `npm ci` sẽ từ chối cài còn `npm install` tự bổ sung.
+      - run: npm install --no-audit --no-fund
       - run: npm run build
       - uses: actions/upload-pages-artifact@v4
         with:
