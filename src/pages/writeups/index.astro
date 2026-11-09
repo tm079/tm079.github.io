@@ -1,0 +1,215 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import WriteupCard from '../../components/WriteupCard.astro';
+import { getWriteups, groupByPlatform, countBy } from '../../lib/writeups';
+import { plural } from '../../lib/utils';
+import { CATEGORIES, type Category } from '../../lib/taxonomy';
+
+const writeups = await getWriteups();
+const platforms = groupByPlatform(writeups);
+const catCounts = countBy<Category>(writeups, (w) => w.data.category);
+
+const groups = [
+  {
+    key: 'category',
+    label: 'Category',
+    options: (Object.keys(CATEGORIES) as Category[])
+      .filter((k) => catCounts.has(k))
+      .map((k) => ({ value: k, label: CATEGORIES[k].label, count: catCounts.get(k)! })),
+  },
+  {
+    key: 'platform',
+    label: 'Platform',
+    options: platforms.map((p) => ({ value: p.slug, label: p.name, count: p.writeups.length })),
+  },
+].filter((g) => g.options.length > 0);
+---
+
+<BaseLayout title="Write-ups" description="All write-ups, filterable by category and platform.">
+  <div class="container">
+    <header class="page-head">
+      <p class="eyebrow">$ ls -la writeups/</p>
+      <h1>Write-ups</h1>
+      <p>{`${plural(writeups.length, 'write-up')}, newest first.`}</p>
+    </header>
+
+    <div class="filters card">
+      <label class="search-box">
+        <span class="visually-hidden">Filter by keyword</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <input id="q" type="search" placeholder="Filter by title, tag or event…" autocomplete="off" />
+      </label>
+      {
+        groups.map((g) => (
+          <div class="chip-row" role="group" aria-label={g.label} data-filter={g.key}>
+            <span class="chip-label mono">{g.label}</span>
+            <button type="button" class="chip" data-value="" aria-pressed="true">
+              All
+            </button>
+            {g.options.map((o) => (
+              <button type="button" class="chip" data-value={o.value} aria-pressed="false">
+                {o.label} <span class="chip-count">{o.count}</span>
+              </button>
+            ))}
+          </div>
+        ))
+      }
+    </div>
+
+    <p class="result-count mono" aria-live="polite">Showing <span id="shown">{writeups.length}</span> of {writeups.length}</p>
+
+    <div id="list" class="wu-list">
+      {writeups.map((w) => <WriteupCard entry={w} />)}
+    </div>
+    <p id="empty" class="empty muted" hidden>No write-ups match your filters.</p>
+  </div>
+</BaseLayout>
+
+<script>
+  const state: Record<string, string> = { category: '', platform: '' };
+  const q = document.getElementById('q') as HTMLInputElement;
+  const cards = [...document.querySelectorAll<HTMLElement>('#list .wu-card')];
+  const shown = document.getElementById('shown')!;
+  const empty = document.getElementById('empty')!;
+
+  function apply() {
+    const term = q.value.trim().toLowerCase();
+    let n = 0;
+    for (const card of cards) {
+      const ok =
+        (!state.category || card.dataset.category === state.category) &&
+        (!state.platform || card.dataset.platform === state.platform) &&
+        (!term || (card.dataset.search ?? '').includes(term));
+      card.hidden = !ok;
+      if (ok) n++;
+    }
+    shown.textContent = String(n);
+    empty.hidden = n > 0;
+
+    for (const row of document.querySelectorAll<HTMLElement>('.chip-row')) {
+      const key = row.dataset.filter!;
+      for (const chip of row.querySelectorAll<HTMLButtonElement>('.chip')) {
+        chip.setAttribute('aria-pressed', String(chip.dataset.value === state[key]));
+      }
+    }
+
+    const params = new URLSearchParams();
+    for (const [k, v] of Object.entries(state)) if (v) params.set(k, v);
+    if (term) params.set('q', term);
+    const qs = params.toString();
+    history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+  }
+
+  for (const row of document.querySelectorAll<HTMLElement>('.chip-row')) {
+    row.addEventListener('click', (e) => {
+      const chip = (e.target as HTMLElement).closest<HTMLButtonElement>('.chip');
+      if (!chip) return;
+      state[row.dataset.filter!] = chip.dataset.value ?? '';
+      apply();
+    });
+  }
+  q.addEventListener('input', apply);
+
+  // Đọc bộ lọc từ URL, vd: /writeups/?category=web
+  const params = new URLSearchParams(location.search);
+  for (const key of Object.keys(state)) state[key] = params.get(key) ?? '';
+  q.value = params.get('q') ?? '';
+  apply();
+</script>
+
+<style>
+  .filters {
+    display: grid;
+    gap: 12px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .filters:hover {
+    transform: none;
+  }
+  .search-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text-faint);
+  }
+  .search-box:focus-within {
+    border-color: var(--accent);
+  }
+  .search-box input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+  }
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip-label {
+    width: 84px;
+    font-size: 0.76rem;
+    color: var(--text-faint);
+  }
+  .chip {
+    padding: 4px 11px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .chip:hover {
+    color: var(--text);
+    border-color: var(--border-strong);
+  }
+  .chip[aria-pressed='true'] {
+    color: var(--accent-ink);
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .chip-count {
+    opacity: 0.65;
+    font-size: 0.78em;
+  }
+  .result-count {
+    margin: 0 0 12px;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+  }
+  .wu-list {
+    display: grid;
+    gap: 12px;
+  }
+  .wu-list :global([hidden]) {
+    display: none;
+  }
+  .empty {
+    padding: 32px 0;
+    text-align: center;
+  }
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  @media (max-width: 640px) {
+    .chip-label {
+      width: 100%;
+    }
+  }
+</style>

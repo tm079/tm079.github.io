@@ -1,0 +1,81 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import WriteupCard from '../../components/WriteupCard.astro';
+import { SITE } from '../../site.config';
+import { getWriteups, groupByPlatform, type PlatformGroup, type Writeup } from '../../lib/writeups';
+import { plural } from '../../lib/utils';
+
+export async function getStaticPaths() {
+  const platforms = groupByPlatform(await getWriteups());
+  return platforms.map((group) => ({ params: { platform: group.slug }, props: { group } }));
+}
+
+interface Props {
+  group: PlatformGroup;
+}
+
+const { group } = Astro.props;
+
+// Nếu có bài thuộc giải CTF (có `event`) thì nhóm theo giải, giải mới nhất lên trước.
+const byEvent = new Map<string, Writeup[]>();
+for (const w of group.writeups) {
+  const key = w.data.event ?? '';
+  byEvent.set(key, [...(byEvent.get(key) ?? []), w]);
+}
+const hasEvents = [...byEvent.keys()].some(Boolean);
+const sections = [...byEvent.entries()]
+  .map(([event, writeups]) => ({ event, writeups }))
+  .sort((a, b) => (a.event === '' ? 1 : b.event === '' ? -1 : b.writeups[0].data.date.valueOf() - a.writeups[0].data.date.valueOf()));
+---
+
+<BaseLayout title={group.name} description={SITE.platforms[group.name] ?? `Write-ups on ${group.name}.`}>
+  <div class="container">
+    <header class="page-head">
+      <p class="eyebrow">$ cd platforms/{group.slug}</p>
+      <h1>{group.name}</h1>
+      <p>{`${SITE.platforms[group.name] ?? `Write-ups on ${group.name}.`} · ${plural(group.writeups.length, 'write-up')}`}</p>
+    </header>
+
+    {
+      hasEvents ? (
+        sections.map((s) => (
+          <section class="event">
+            <h2 class="event-title mono">
+              {s.event || 'Other'} <span class="muted">({s.writeups.length})</span>
+            </h2>
+            <div class="wu-list">
+              {s.writeups.map((w) => (
+                <WriteupCard entry={w} hidePlatform />
+              ))}
+            </div>
+          </section>
+        ))
+      ) : (
+        <div class="wu-list">
+          {group.writeups.map((w) => (
+            <WriteupCard entry={w} hidePlatform />
+          ))}
+        </div>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<style>
+  .wu-list {
+    display: grid;
+    gap: 12px;
+  }
+  .event + .event {
+    margin-top: 36px;
+  }
+  .event-title {
+    margin: 0 0 14px;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+  .event-title::before {
+    content: '## ';
+    color: var(--accent);
+  }
+</style>

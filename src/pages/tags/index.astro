@@ -1,0 +1,55 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getWriteups, groupByTag } from '../../lib/writeups';
+import { plural, url } from '../../lib/utils';
+
+const tags = groupByTag(await getWriteups());
+---
+
+<BaseLayout title="Tags" description="All write-up tags.">
+  <div class="container">
+    <header class="page-head">
+      <p class="eyebrow">$ ls tags/</p>
+      <h1>Tags</h1>
+      <p>{`${plural(tags.length, 'tag')}, sorted by number of write-ups.`}</p>
+    </header>
+    <ul class="tag-cloud">
+      {
+        tags.map((t) => (
+          <li>
+            <a class="card mono" href={url(`/tags/${t.slug}/`)}>
+              #{t.name} <span>{t.writeups.length}</span>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</BaseLayout>
+
+<style>
+  .tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .tag-cloud a {
+    display: inline-flex;
+    gap: 8px;
+    align-items: baseline;
+    padding: 7px 13px;
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  .tag-cloud a:hover {
+    text-decoration: none;
+    border-color: var(--accent);
+  }
+  .tag-cloud span {
+    color: var(--accent);
+    font-size: 0.8rem;
+  }
+</style>

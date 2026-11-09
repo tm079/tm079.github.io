@@ -1,0 +1,51 @@
+---
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+---
+
+<ol class="toc-list">
+  {
+    headings.map((h) => (
+      <li class:list={['toc-item', `depth-${h.depth}`]}>
+        <a href={`#${h.slug}`} data-toc-link={h.slug}>
+          {h.text}
+        </a>
+      </li>
+    ))
+  }
+</ol>
+
+<style>
+  .toc-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.86rem;
+    border-left: 1px solid var(--border);
+  }
+  .toc-item a {
+    display: block;
+    padding: 4px 0 4px 14px;
+    margin-left: -1px;
+    border-left: 2px solid transparent;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+  .toc-item.depth-3 a {
+    padding-left: 28px;
+    font-size: 0.82rem;
+  }
+  .toc-item a:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .toc-item a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+  }
+</style>

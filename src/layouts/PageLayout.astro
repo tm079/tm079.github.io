@@ -1,0 +1,20 @@
+---
+// Layout cho các trang viết bằng Markdown trong src/pages (vd: about.md)
+import BaseLayout from './BaseLayout.astro';
+import '../styles/prose.css';
+
+const { frontmatter } = Astro.props;
+---
+
+<BaseLayout title={frontmatter.title} description={frontmatter.description}>
+  <div class="container narrow">
+    <header class="page-head">
+      {frontmatter.eyebrow && <p class="eyebrow">{frontmatter.eyebrow}</p>}
+      <h1>{frontmatter.title}</h1>
+      {frontmatter.description && <p>{frontmatter.description}</p>}
+    </header>
+    <div class="prose">
+      <slot />
+    </div>
+  </div>
+</BaseLayout>

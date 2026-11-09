@@ -1,0 +1,90 @@
+---
+import Badges from './Badges.astro';
+import type { Writeup } from '../lib/writeups';
+import { formatDate, slugify, url } from '../lib/utils';
+
+interface Props {
+  entry: Writeup;
+  /** Ẩn tên nền tảng (dùng trên trang của chính nền tảng đó) */
+  hidePlatform?: boolean;
+}
+
+const { entry, hidePlatform = false } = Astro.props;
+const { title, date, platform, event, category, tags, summary } = entry.data;
+const searchText = [title, platform, event, category, ...tags, summary].filter(Boolean).join(' ').toLowerCase();
+---
+
+<article
+  class="wu-card card"
+  data-category={category}
+  data-platform={slugify(platform)}
+  data-search={searchText}
+>
+  <div class="wu-top">
+    <Badges category={category} />
+    {
+      !hidePlatform && (
+        <span class="wu-source mono">
+          {platform}
+          {event && <span class="muted"> / {event}</span>}
+        </span>
+      )
+    }
+    {hidePlatform && event && <span class="wu-source mono muted">{event}</span>}
+    <time class="wu-date mono" datetime={date.toISOString()}>{formatDate(date)}</time>
+  </div>
+  <h3 class="wu-title"><a href={url(`/writeups/${entry.id}/`)}>{title}</a></h3>
+  {summary && <p class="wu-summary">{summary}</p>}
+  {
+    tags.length > 0 && (
+      <ul class="tag-list">
+        {tags.map((t) => (
+          <li>
+            <a href={url(`/tags/${slugify(t)}/`)}>#{t}</a>
+          </li>
+        ))}
+      </ul>
+    )
+  }
+</article>
+
+<style>
+  .wu-card {
+    padding: 16px 18px;
+  }
+  .wu-card:hover {
+    transform: translateY(-1px);
+  }
+  .wu-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    font-size: 0.8rem;
+  }
+  .wu-source {
+    color: var(--text);
+    font-size: 0.8rem;
+  }
+  .wu-date {
+    margin-left: auto;
+    color: var(--text-faint);
+    font-size: 0.78rem;
+  }
+  .wu-title {
+    margin: 10px 0 4px;
+    font-size: 1.12rem;
+  }
+  .wu-title a {
+    color: var(--text);
+  }
+  .wu-title a:hover {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .wu-summary {
+    margin: 0 0 10px;
+    color: var(--text-muted);
+    font-size: 0.94rem;
+  }
+</style>

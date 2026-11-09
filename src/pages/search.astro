@@ -1,0 +1,62 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { url } from '../lib/utils';
+
+const base = url('/').replace(/\/$/, '');
+---
+
+<BaseLayout title="Search" description="Full-text search across all write-ups.">
+  <link slot="head" rel="stylesheet" href={url('/pagefind/pagefind-ui.css')} />
+  <div class="container narrow">
+    <header class="page-head">
+      <p class="eyebrow">$ grep -ri "…" writeups/</p>
+      <h1>Search</h1>
+      <p>Search across every write-up, including code.</p>
+    </header>
+    <div id="search"></div>
+    <p id="search-unavailable" class="notice card" hidden>
+      Search is only available on the built site. Run <code>npm run build</code> then <code>npm run preview</code> to try
+      it — the search index doesn't exist under <code>npm run dev</code>.
+    </p>
+  </div>
+</BaseLayout>
+
+<script is:inline define:vars={{ base }}>
+  const s = document.createElement('script');
+  s.src = `${base}/pagefind/pagefind-ui.js`;
+  s.onload = () => {
+    const ui = new PagefindUI({ element: '#search', showSubResults: true, showImages: false, resetStyles: false });
+    const q = new URLSearchParams(location.search).get('q');
+    if (q) ui.triggerSearch(q);
+    document.querySelector('#search input')?.focus();
+  };
+  s.onerror = () => {
+    document.getElementById('search-unavailable').hidden = false;
+  };
+  document.head.append(s);
+</script>
+
+<style>
+  .notice {
+    padding: 14px 16px;
+    color: var(--text-muted);
+  }
+  .notice:hover {
+    transform: none;
+  }
+  #search {
+    --pagefind-ui-scale: 0.9;
+    --pagefind-ui-primary: var(--accent);
+    --pagefind-ui-text: var(--text);
+    --pagefind-ui-background: var(--bg-elev);
+    --pagefind-ui-border: var(--border-strong);
+    --pagefind-ui-tag: var(--bg-soft);
+    --pagefind-ui-border-width: 1px;
+    --pagefind-ui-border-radius: 8px;
+    --pagefind-ui-font: var(--font-sans);
+  }
+  #search :global(mark) {
+    background: color-mix(in srgb, var(--accent) 30%, transparent);
+    color: inherit;
+  }
+</style>

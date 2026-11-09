@@ -1,0 +1,364 @@
+---
+import { render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Badges from '../../components/Badges.astro';
+import Toc from '../../components/Toc.astro';
+import Icon from '../../components/Icon.astro';
+import { getWriteups, type Writeup } from '../../lib/writeups';
+import { formatDate, readingTime, slugify, url } from '../../lib/utils';
+import '../../styles/prose.css';
+
+export async function getStaticPaths() {
+  const writeups = await getWriteups();
+  return writeups.map((entry, i) => ({
+    params: { slug: entry.id },
+    // writeups xếp mới -> cũ, nên "bài trước" là phần tử phía sau
+    props: { entry, prev: writeups[i + 1], next: writeups[i - 1] },
+  }));
+}
+
+interface Props {
+  entry: Writeup;
+  prev?: Writeup;
+  next?: Writeup;
+}
+
+const { entry, prev, next } = Astro.props;
+const { title, date, platform, event, category, tags, summary, source, draft } = entry.data;
+const { Content, headings } = await render(entry);
+const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
+const minutes = readingTime(entry.body);
+---
+
+<BaseLayout title={title} description={summary ?? `Write-up ${title} — ${platform}`}>
+  <div class="container wu-layout">
+    <div class="wu-main">
+      <nav class="crumbs mono" aria-label="Breadcrumb">
+        <a href={url('/writeups/')}>writeups</a>
+        <span aria-hidden="true">/</span>
+        <a href={url(`/platforms/${slugify(platform)}/`)}>{platform}</a>
+        {
+          event && (
+            <>
+              <span aria-hidden="true">/</span>
+              <span>{event}</span>
+            </>
+          )
+        }
+      </nav>
+
+      <article data-pagefind-body>
+        <header class="wu-header">
+          <div class="wu-badges">
+            <Badges category={category} pagefind />
+            <span hidden data-pagefind-filter="Platform">{platform}</span>
+            {draft && <span class="badge" style="--c:#ffb454">DRAFT</span>}
+          </div>
+          <h1>{title}</h1>
+          {summary && <p class="wu-lead">{summary}</p>}
+          <p class="wu-info mono" data-pagefind-ignore>
+            <time datetime={date.toISOString()}>{formatDate(date)}</time>
+            <span aria-hidden="true">·</span>
+            <span>{minutes} min read</span>
+            {
+              source && (
+                <>
+                  <span aria-hidden="true">·</span>
+                  <a class="source-link" href={source} target="_blank" rel="noopener">
+                    <Icon name="github" size={14} />
+                    View on GitHub
+                  </a>
+                </>
+              )
+            }
+          </p>
+          {
+            tags.length > 0 && (
+              <ul class="tag-list" data-pagefind-ignore>
+                {tags.map((t) => (
+                  <li>
+                    <a href={url(`/tags/${slugify(t)}/`)}>#{t}</a>
+                  </li>
+                ))}
+              </ul>
+            )
+          }
+        </header>
+
+        {
+          toc.length > 1 && (
+            <details class="toc-mobile card" data-pagefind-ignore>
+              <summary class="mono">On this page</summary>
+              <Toc headings={toc} />
+            </details>
+          )
+        }
+
+        <div class="prose">
+          <Content />
+        </div>
+      </article>
+
+      <nav class="pager" aria-label="More write-ups">
+        {
+          prev ? (
+            <a class="pager-link card arrow-link" href={url(`/writeups/${prev.id}/`)}>
+              <span class="pager-label mono">
+                <Icon name="arrow-left" size={14} class="icon-back" />
+                Previous
+              </span>
+              <span>{prev.data.title}</span>
+            </a>
+          ) : (
+            <span />
+          )
+        }
+        {
+          next && (
+            <a class="pager-link card next arrow-link" href={url(`/writeups/${next.id}/`)}>
+              <span class="pager-label mono">
+                Next
+                <Icon name="arrow-right" size={14} class="icon-forward" />
+              </span>
+              <span>{next.data.title}</span>
+            </a>
+          )
+        }
+      </nav>
+    </div>
+
+    {
+      toc.length > 1 && (
+        <aside class="toc-aside" aria-label="On this page">
+          <div class="toc-sticky">
+            <p class="toc-title mono">On this page</p>
+            <Toc headings={toc} />
+            <a class="back-top mono arrow-link" href="#main">
+              <Icon name="arrow-up" size={13} class="icon-up" />
+              Back to top
+            </a>
+          </div>
+        </aside>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<script>
+  // Nút "Copy" + nhãn ngôn ngữ cho mỗi code block
+  for (const pre of document.querySelectorAll<HTMLPreElement>('.prose pre')) {
+    const wrap = document.createElement('div');
+    wrap.className = 'code-block';
+    const bar = document.createElement('div');
+    bar.className = 'code-block-bar';
+    const lang = pre.dataset.language;
+    const label = document.createElement('span');
+    label.textContent = lang && lang !== 'plaintext' ? lang : 'text';
+    bar.append(label);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(pre.innerText);
+        btn.textContent = 'Copied';
+        btn.dataset.copied = '';
+      } catch {
+        btn.textContent = 'Failed';
+      }
+      setTimeout(() => {
+        btn.textContent = 'Copy';
+        delete btn.dataset.copied;
+      }, 1600);
+    });
+    bar.append(btn);
+    pre.replaceWith(wrap);
+    wrap.append(bar, pre);
+  }
+
+  // Tô sáng mục đang đọc trong mục lục
+  const links = [...document.querySelectorAll<HTMLAnchorElement>('[data-toc-link]')];
+  const targets = [...new Set(links.map((a) => a.dataset.tocLink!))]
+    .map((id) => document.getElementById(id))
+    .filter((el): el is HTMLElement => el !== null);
+
+  if (targets.length) {
+    const setActive = (id: string) => {
+      for (const a of links) a.classList.toggle('active', a.dataset.tocLink === id);
+    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.filter((e) => e.isIntersecting);
+        if (visible.length) setActive(visible[0].target.id);
+      },
+      { rootMargin: '-80px 0px -70% 0px' },
+    );
+    targets.forEach((t) => observer.observe(t));
+  }
+</script>
+
+<style>
+  .wu-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 230px;
+    gap: 56px;
+    padding-top: 32px;
+  }
+  .wu-main {
+    min-width: 0;
+    max-width: 780px;
+  }
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+    margin-bottom: 20px;
+  }
+  .crumbs a {
+    color: var(--text-muted);
+  }
+  .wu-header {
+    padding-bottom: 22px;
+    margin-bottom: 28px;
+    border-bottom: 1px solid var(--border);
+  }
+  .wu-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .wu-header h1 {
+    margin: 14px 0 10px;
+    font-size: clamp(1.8rem, 4.4vw, 2.5rem);
+    letter-spacing: -0.02em;
+  }
+  .wu-lead {
+    margin: 0 0 14px;
+    font-size: 1.08rem;
+    color: var(--text-muted);
+  }
+  .wu-info {
+    display: flex;
+    gap: 10px;
+    margin: 0 0 12px;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+  }
+
+  .toc-aside {
+    position: relative;
+  }
+  .toc-sticky {
+    position: sticky;
+    top: 88px;
+    max-height: calc(100vh - 110px);
+    overflow-y: auto;
+    padding-top: 44px;
+  }
+  .toc-title {
+    margin: 0 0 10px;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+  }
+  .back-top {
+    margin-top: 16px;
+    font-size: 0.78rem;
+    color: var(--text-faint);
+  }
+  .back-top:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .source-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+  }
+  .source-link:hover {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .toc-mobile {
+    display: none;
+    margin-bottom: 24px;
+    padding: 10px 14px;
+  }
+  .toc-mobile:hover {
+    transform: none;
+  }
+  .toc-mobile summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .toc-mobile[open] summary {
+    margin-bottom: 10px;
+  }
+
+  .pager {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 48px;
+  }
+  .pager-link {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 16px;
+    color: var(--text);
+    font-weight: 550;
+  }
+  .pager-link:hover {
+    text-decoration: none;
+    border-color: var(--accent);
+  }
+  .pager-link.arrow-link {
+    display: flex;
+    align-items: stretch;
+  }
+  .pager-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.76rem;
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+  .pager-link.next {
+    text-align: right;
+    grid-column: 2;
+  }
+  .pager-link.next .pager-label {
+    align-self: flex-end;
+  }
+
+  @media (max-width: 1024px) {
+    .wu-layout {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .wu-main {
+      max-width: none;
+    }
+    .toc-aside {
+      display: none;
+    }
+    .toc-mobile {
+      display: block;
+    }
+  }
+  @media (max-width: 560px) {
+    .pager {
+      grid-template-columns: 1fr;
+    }
+    .pager-link.next {
+      grid-column: auto;
+    }
+  }
+</style>

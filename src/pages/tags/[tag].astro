@@ -1,0 +1,37 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import WriteupCard from '../../components/WriteupCard.astro';
+import { getWriteups, groupByTag, type TagGroup } from '../../lib/writeups';
+import { plural, url } from '../../lib/utils';
+
+export async function getStaticPaths() {
+  const tags = groupByTag(await getWriteups());
+  return tags.map((tag) => ({ params: { tag: tag.slug }, props: { tag } }));
+}
+
+interface Props {
+  tag: TagGroup;
+}
+
+const { tag } = Astro.props;
+---
+
+<BaseLayout title={`#${tag.name}`} description={`Write-ups tagged ${tag.name}.`}>
+  <div class="container">
+    <header class="page-head">
+      <p class="eyebrow">$ grep -rl "#{tag.name}" writeups/</p>
+      <h1>#{tag.name}</h1>
+      <p>{`${plural(tag.writeups.length, 'write-up')} · `}<a href={url('/tags/')}>all tags</a></p>
+    </header>
+    <div class="wu-list">
+      {tag.writeups.map((w) => <WriteupCard entry={w} />)}
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .wu-list {
+    display: grid;
+    gap: 12px;
+  }
+</style>

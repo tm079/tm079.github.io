@@ -1,0 +1,14 @@
+---
+import { CATEGORIES, type Category } from '../lib/taxonomy';
+
+interface Props {
+  category: Category;
+  /** Gắn thuộc tính lọc cho Pagefind (chỉ dùng trên trang write-up) */
+  pagefind?: boolean;
+}
+
+const { category, pagefind = false } = Astro.props;
+const cat = CATEGORIES[category];
+---
+
+<span class="badge" style={`--c:${cat.color}`} data-pagefind-filter={pagefind ? 'Category' : undefined}>{cat.label}</span>

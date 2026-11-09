@@ -1,0 +1,236 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import WriteupCard from '../components/WriteupCard.astro';
+import Icon from '../components/Icon.astro';
+import { SITE } from '../site.config';
+import { getWriteups, groupByPlatform, countBy } from '../lib/writeups';
+import { CATEGORIES, type Category } from '../lib/taxonomy';
+import { formatDate, url } from '../lib/utils';
+
+const writeups = await getWriteups();
+const platforms = groupByPlatform(writeups);
+const recent = writeups.slice(0, 6);
+const categoryCounts = [...countBy<Category>(writeups, (w) => w.data.category)].sort((a, b) => b[1] - a[1]);
+const eventCount = new Set(writeups.map((w) => w.data.event).filter(Boolean)).size;
+---
+
+<BaseLayout>
+  <section class="container hero">
+    <div class="hero-text">
+      <p class="eyebrow">{SITE.tagline}</p>
+      {SITE.heroTitle ? <h1>{SITE.heroTitle}</h1> : <h1 class="visually-hidden">{SITE.author} · {SITE.title}</h1>}
+      <p class:list={['lead', { 'lead-big': !SITE.heroTitle }]}>{SITE.bio}</p>
+      <div class="cta">
+        <a class="btn btn-primary" href={url('/writeups/')}>Browse write-ups</a>
+        <a class="btn" href={url('/about/')}>About me</a>
+      </div>
+    </div>
+
+    <div class="terminal card" role="img" aria-label={`${writeups.length} write-ups across ${platforms.length} platforms`}>
+      <div class="terminal-bar" aria-hidden="true">
+        <span></span><span></span><span></span>
+        <em>~/{SITE.username}</em>
+      </div>
+      <div class="terminal-body mono" aria-hidden="true">
+        <div><span class="ps">$</span> whoami</div>
+        <div class="out">{SITE.author}</div>
+        <div><span class="ps">$</span> ls writeups/ | wc -l</div>
+        <div class="out">{writeups.length}</div>
+        <div><span class="ps">$</span> ls platforms/</div>
+        <div class="out">{platforms.map((p) => p.name).join('  ')}</div>
+        <div><span class="ps">$</span> cat stats.txt</div>
+        <div class="out stats">
+          {
+            categoryCounts.map(([cat, n]) => (
+              <span style={`--c:${CATEGORIES[cat].color}`}>
+                {CATEGORIES[cat].label.toLowerCase()} <b>{n}</b>
+              </span>
+            ))
+          }
+        </div>
+        {eventCount > 0 && <div class="out">{eventCount} CTF {eventCount === 1 ? 'event' : 'events'}</div>}
+        <div><span class="ps">$</span> <span class="cursor">▌</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section" id="platforms">
+    <div class="section-head">
+      <h2>platforms</h2>
+    </div>
+    <div class="platform-grid">
+      {
+        platforms.map((p) => (
+          <a class="platform-card card" href={url(`/platforms/${p.slug}/`)}>
+            <div class="platform-top">
+              <h3>{p.name}</h3>
+              <span class="count mono">{p.writeups.length}</span>
+            </div>
+            <p>{SITE.platforms[p.name] ?? `Write-ups on ${p.name}.`}</p>
+            <span class="updated mono">updated {formatDate(p.latest)}</span>
+          </a>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="section-head">
+      <h2>recent</h2>
+      <a class="arrow-link" href={url('/writeups/')}>
+        All write-ups
+        <Icon name="arrow-right" size={14} class="icon-forward" />
+      </a>
+    </div>
+    <div class="recent-grid">
+      {recent.map((w) => <WriteupCard entry={w} />)}
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 40px;
+    align-items: center;
+    padding-top: 64px;
+    padding-bottom: 40px;
+  }
+  .hero h1 {
+    margin: 0 0 14px;
+    font-size: clamp(1.9rem, 4.2vw, 2.9rem);
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+  .lead {
+    margin: 0 0 24px;
+    color: var(--text-muted);
+    font-size: 1.08rem;
+    max-width: 52ch;
+  }
+  /* Khi không có tiêu đề lớn, phần giới thiệu được làm nổi hơn */
+  .lead-big {
+    font-size: clamp(1.3rem, 2.8vw, 1.7rem);
+    line-height: 1.45;
+    font-weight: 550;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    text-wrap: balance;
+  }
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .terminal {
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .terminal:hover {
+    transform: none;
+  }
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-soft);
+  }
+  .terminal-bar span {
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--border-strong);
+  }
+  .terminal-bar em {
+    margin-left: 8px;
+    font-style: normal;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-faint);
+  }
+  .terminal-body {
+    padding: 16px 18px 18px;
+    font-size: 0.86rem;
+    line-height: 1.75;
+    overflow-x: auto;
+  }
+  .ps {
+    color: var(--accent);
+  }
+  .out {
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+  .stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 16px;
+  }
+  .stats span {
+    color: color-mix(in srgb, var(--c), var(--badge-mix) var(--badge-mix-amount));
+  }
+  .stats b {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .platform-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  .platform-card {
+    display: flex;
+    flex-direction: column;
+    padding: 18px;
+    color: var(--text);
+  }
+  .platform-card:hover {
+    text-decoration: none;
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+  .platform-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .platform-card h3 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+  .count {
+    color: var(--accent);
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+  .platform-card p {
+    flex: 1;
+    margin: 8px 0 14px;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+  }
+  .updated {
+    font-size: 0.74rem;
+    color: var(--text-faint);
+  }
+
+  .recent-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+    gap: 14px;
+  }
+
+  @media (max-width: 860px) {
+    .hero {
+      grid-template-columns: minmax(0, 1fr);
+      padding-top: 40px;
+      gap: 28px;
+    }
+  }
+</style>
