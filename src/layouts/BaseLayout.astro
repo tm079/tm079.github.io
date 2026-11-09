@@ -13,7 +13,8 @@ interface Props {
 }
 
 const { title, description = SITE.description } = Astro.props;
-const fullTitle = title && title !== SITE.title ? `${title} · ${SITE.title}` : `${SITE.title} · ${SITE.author}`;
+// Tiêu đề tab: "tm079 - Home", "tm079 - Write-ups", "tm079 - Login portal 1"…
+const fullTitle = `${SITE.title} - ${title ?? 'Home'}`;
 const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : undefined;
 ---
 

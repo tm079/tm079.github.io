@@ -23,8 +23,8 @@ export interface WriteupSource {
 }
 
 export const SITE = {
-  /** Tên hiển thị trên tab trình duyệt */
-  title: 'Write-ups',
+  /** Tên site, hiện trên tab trình duyệt: "tm079 - Home", "tm079 - Write-ups"… */
+  title: 'tm079',
   /** Tên của bạn */
   author: 'Thai Manh',
   /** Username GitHub — dùng cho logo, link GitHub và avatar */
