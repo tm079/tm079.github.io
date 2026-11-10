@@ -50,6 +50,7 @@ export const SITE = {
    */
   sources: [
     { repo: 'tm079/RingZer0CTF', platform: 'RingZer0CTF', categories: { 'SQL Injection': 'web' } },
+    { repo: 'tm079/Root-Me', platform: 'Root-Me', defaultCategory: 'web' },
   ] as WriteupSource[],
   /**
    * Mô tả cho từng nền tảng (hiện trên thẻ ở trang chủ).
@@ -58,6 +59,7 @@ export const SITE = {
    */
   platforms: {
     RingZer0CTF: 'Challenges from RingZer0 Team Online CTF.',
+    'Root-Me': 'Challenges from the Root-Me platform.',
     CTF: "Write-ups from CTF events I've played.",
     HackTheBox: 'Machines and challenges on Hack The Box.',
     TryHackMe: 'Rooms and learning paths on TryHackMe.',
